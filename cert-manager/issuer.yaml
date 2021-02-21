@@ -1,0 +1,22 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-dns01
+spec:
+  acme:
+    # You must replace this email address with your own.
+    # Let's Encrypt will use this to contact you about expiring
+    # certificates, and issues related to your account.
+    email: roc@imroc.io
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      # Secret resource that will be used to store the account's private key.
+      name: letsencrypt-dns01
+    # Add a single challenge solver, HTTP01 using nginx
+    solvers:
+    - dns01:
+        cloudflare:
+          email: roc@imroc.io
+          apiTokenSecretRef:
+            name: cloudflare-api-token-secret
+            key: api-token

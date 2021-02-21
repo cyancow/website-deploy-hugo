@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: website
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: website
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: website
+    spec:
+      initContainers:
+      - name: clone
+        image: imroc.tencentcloudcr.com/library/git:latest
+        imagePullPolicy: Always
+        command:
+        - /git-sync.sh
+        - clone
+        volumeMounts:
+        - mountPath: /git-sync.sh
+          name: sh
+          subPath: git-sync.sh
+        - mountPath: /var/www
+          name: www
+      containers:
+      - name: sync
+        image: imroc.tencentcloudcr.com/library/git:latest
+        imagePullPolicy: Always
+        command:
+        - /git-sync.sh
+        - sync
+        volumeMounts:
+        - mountPath: /git-sync.sh
+          name: sh
+          subPath: git-sync.sh
+        - mountPath: /var/www
+          name: www
+      - name: website
+        image: imroc.tencentcloudcr.com/library/nginx:latest
+        imagePullPolicy: Always
+        volumeMounts:
+        - mountPath: /etc/nginxconf
+          name: conf
+        - mountPath: /var/www
+          name: www
+        - mountPath: /ssl
+          name: cert
+      volumes:
+      - name: conf
+        configMap:
+          name: website-nginx-conf
+      - name: sh
+        configMap:
+          name: git-sync-sh
+          defaultMode: 0777
+      - name: cert
+        secret:
+          secretName: imroc-crt-secret
+      - name: www
+        emptyDir: {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: website
+  annotations:
+    service.kubernetes.io/tke-existed-lbid: "lb-qftuf8a2"
+  labels:
+    app: website
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    protocol: TCP
+    name: http
+  - port: 443
+    protocol: TCP
+    name: https
+  selector:
+    app: website
+
